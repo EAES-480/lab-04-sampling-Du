@@ -12,7 +12,7 @@ output:
     code_folding: hide
     df_print: paged
 editor_options:
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
 ```{r setup, echo=FALSE, message=FALSE, warning=FALSE}
@@ -58,7 +58,7 @@ By the end of this lab, you should be able to:
 
 ## Load and inspect
 
-```{r load_data, echo=TRUE, eval=FALSE}
+```{r load_data, echo=TRUE, eval=TRUE}
 df <- read_csv("data/us-ams-simple.csv") %>%
   clean_names() %>% filter(year_local == 2023)
 
@@ -73,15 +73,17 @@ glimpse(df)
 
 This dataset uses **Year + Day-of-Year (DOY)**. Month must be derived from a calendar date.
 
-```{r derive_time, echo=TRUE, eval=FALSE}
+```{r derive_time, echo=TRUE, eval=TRUE}
+df <- df %>%
+  filter(year_local == 2023, doy >= 1, doy <= 366)
 df <- df %>%
   mutate(
     # TODO: create a Date column from year_local and doy
     # HINT: Jan 1 is DOY = 1, so use (doy - 1) with origin = "YYYY-01-01"
-    date = as.Date(___ - 1, origin = paste0(___, "-01-01")),
+    date = as.Date(doy - 1, origin = paste0(year_local, "-01-01")),
 
     # TODO: create a month column (numeric 1–12 or labeled months)
-    month = month(___, label = TRUE, abbr = TRUE),
+    month = month(date, label = TRUE, abbr = TRUE),
 
     # TODO: make a day/night label using daytime (0/1)
     day_night = if_else(daytime == 1, "Day", "Night")
@@ -102,22 +104,22 @@ Examples you can choose from (depending on what you see in the dataset):
 - Energy: `le`
 - Meteorology: `ta`, `ts`, `swc`
 
-```{r choose_response, echo=TRUE, eval=FALSE}
+```{r choose_response, echo=TRUE, eval=TRUE}
 # TODO: choose ONE response variable (a column name as a string)
-response_var <- "gpp"   # replace "gpp" with your choice, e.g. "fc" or "le" or "ta"
+response_var <- "le"   # replace "gpp" with your choice, e.g. "fc" or "le" or "ta"
 
 # CHECK: print a quick summary
 df %>% summarise(
   n = n(),
-  n_missing = sum(is.na(____)),
-  mean = mean(____, na.rm = TRUE),
-  sd = sd(____, na.rm = TRUE)
+  n_missing = sum(is.na(.data[[response_var]])),
+  mean = mean(.data[[response_var]], na.rm = TRUE),
+  sd = sd(.data[[response_var]], na.rm = TRUE)
 )
 ```
 
 **Prompt (2–3 sentences):** Why did you choose this response variable? What do you expect its seasonality/day–night pattern to be?
 
-> *Write your answer here.*
+> I choose le (energy) as the response variable because it directly reflects the energy exchange between the surface and the atmosphere. I expect that le will be strong in summer and weak in winter,and it should be higher during the day and lower or close to zero at night.
 
 ---
 
@@ -130,11 +132,11 @@ Fill in at least **5 variables** from this dataset:
 
 | Variable | Units | Description | Expected sign/seasonality? |
 |----------|-------|-------------|----------------------------|
-|          |       |             |                            |
-|          |       |             |                            |
-|          |       |             |                            |
-|          |       |             |                            |
-|          |       |             |                            |
+| le |    W m-2   |   Latent heat turbulent flux (no storage correction)   |  Summer high, winter low. Typically higher during daytime and near zero at night. Strong seasonality   |
+|  DO   |  µmol L-1  |  Dissolved oxygen in water   |  Higher in colder seasons                      |
+|   PCH4  | nmolCH4 mol-1  | Dissolved methane (CH4) in water   |   Higher in warm seasons          |
+|  PCO2 | µmolCO2 mol-1 |  Dissolved carbon dioxide (CO2) in water |  Higher in warm seasons      |
+| DBH  |  cm  |  Diameter of tree measured at breast height (1.3m) with continuous dendrometers   |  May have seasonal growth pulses (spring/summer)     |
 
 ---
 
@@ -144,12 +146,12 @@ Remember: for this lab, the **population** is the entire 2023 half-hourly time s
 
 ## 2.1 Time series view
 
-```{r plot_time_series, echo=TRUE, eval=FALSE}
+```{r plot_time_series, echo=TRUE, eval=TRUE}
 # GOAL: Visualize seasonality over the year.
 # TODO: pick a y aesthetic using response_var.
 
 df %>%
-  ggplot(aes(x = date, y = ____)) +
+  ggplot(aes(x = date, y =.data[[response_var]])) +
   geom_line(alpha = 0.25) +
   theme_classic(base_size = 18) +
   labs(
@@ -161,22 +163,22 @@ df %>%
 
 **Prompt (2–3 sentences):** What major patterns do you see? (Seasonal cycle? Daily cycle? Outliers?)
 
-> *Write your answer here.*
+> The LE time series shows a clear seasonal pattern across 2023. Values are much higher in the summer and much lower (often near zero) in the winter. There is also noticeable short-term variation throughout the year, which likely reflects day–night changes and weather events.
 
 ---
 
 ## 2.2 Population distribution (histogram + density)
 
-```{r pop_distribution, echo=TRUE, eval=FALSE}
+```{r pop_distribution, echo=TRUE, eval=TRUE}
 # GOAL: See the overall distribution of the population.
 # TODO: choose an appropriate number of bins (start with ~50).
 
-ggplot(df, aes(x = ____)) +
-  geom_histogram(bins = ___, alpha = 0.7) +
+ggplot(df, aes(x = .data[[response_var]])) +
+  geom_histogram(bins = 50, alpha = 0.7) +
   theme_classic(base_size = 18) +
   labs(x = response_var, y = "Count", title = "Population distribution (histogram)")
 
-ggplot(df, aes(x = ____)) +
+ggplot(df, aes(x = .data[[response_var]])) +
   geom_density(alpha = 0.7) +
   theme_classic(base_size = 18) +
   labs(x = response_var, y = "Density", title = "Population distribution (density)")
@@ -184,7 +186,7 @@ ggplot(df, aes(x = ____)) +
 
 **Prompt:** Describe shape (skew, modality), center, and spread.
 
-> *Write your answer here.*
+> LE is very right-skewed, with lots of low values and a long tail of high values. The high LE values probably happen mostly during summer daytime, while winter and nighttime values stay close to zero.
 
 ---
 
@@ -192,10 +194,10 @@ ggplot(df, aes(x = ____)) +
 
 ### By month
 
-```{r pop_by_month, echo=TRUE, eval=FALSE}
+```{r pop_by_month, echo=TRUE, eval=TRUE}
 # TODO: make month appear in a sensible order (it already is an ordered factor if label=TRUE)
 df %>%
-  ggplot(aes(x = month, y = ____)) +
+  ggplot(aes(x = month, y = .data[[response_var]])) +
   geom_boxplot(outlier.alpha = 0.25) +
   theme_classic(base_size = 18) +
   labs(x = NULL, y = response_var, title = "Population by month")
@@ -203,9 +205,9 @@ df %>%
 
 ### By day/night
 
-```{r pop_by_daynight, echo=TRUE, eval=FALSE}
+```{r pop_by_daynight, echo=TRUE, eval=TRUE}
 df %>%
-  ggplot(aes(x = day_night, y = ____)) +
+  ggplot(aes(x = day_night, y = .data[[response_var]])) +
   geom_boxplot(outlier.alpha = 0.25) +
   theme_classic(base_size = 18) +
   labs(x = NULL, y = response_var, title = "Population by day vs night")
@@ -213,17 +215,16 @@ df %>%
 
 **Prompt (3–4 sentences):** Which grouping variable (month or day/night) seems to explain more variability in your response? Why?
 
-> *Write your answer here.*
-
+> I think month explains more variability in LE because the values are much higher in summer and much lower in winter. Day vs night is also important since LE is usually higher during the day and close to zero at night. But the seasonal change across months looks bigger overall.
 ---
 
 # Section 3 — Population parameters (truth)
 
 Compute the population mean and SD for your chosen response variable.
 
-```{r population_params, echo=TRUE, eval=FALSE}
-pop_mean <- mean(df____, na.rm = TRUE)
-pop_sd   <- sd(df____, na.rm = TRUE)
+```{r population_params, echo=TRUE, eval=TRUE}
+pop_mean <- mean(df[[response_var]], na.rm = TRUE)
+pop_sd   <- sd(df[[response_var]], na.rm = TRUE)
 
 tibble(
   response_var = response_var,
@@ -238,17 +239,17 @@ tibble(
 
 ## 4.1 One random sample
 
-```{r one_sample, echo=TRUE, eval=FALSE}
+```{r one_sample, echo=TRUE, eval=TRUE}
 set.seed(480)
 
 # TODO: choose a sample size (e.g., 200, 500, 1000)
-n_samp <- ___
+n_samp <- 200
 
 samp <- df %>%
   slice_sample(n = n_samp)
 
-samp_mean <- mean(samp____, na.rm = TRUE)
-samp_sd   <- sd(samp____, na.rm = TRUE)
+samp_mean <- mean(samp[[response_var]], na.rm = TRUE)
+samp_sd   <- sd(samp[[response_var]], na.rm = TRUE)
 
 tibble(
   n_samp = n_samp,
@@ -261,22 +262,22 @@ tibble(
 
 **Prompt (2–3 sentences):** How close is your one-sample estimate to the population mean/SD? Is the difference surprising?
 
-> *Write your answer here.*
+> The one-sample estimate was pretty close to the population values. The sample mean (63.01) is only slightly higher than the population mean (61.37), and the SD is also very similar. Any small differences are expected since this is just one random sample of 200 points.
 
 ---
 
 ## 4.2 Sampling variability: many samples → many means
 
-```{r sampling_distribution, echo=TRUE, eval=FALSE}
+```{r sampling_distribution, echo=TRUE, eval=TRUE}
 set.seed(480)
 
-reps <- ___   # TODO: choose number of replicates (e.g., 500 or 1000)
+reps <- 500   # TODO: choose number of replicates (e.g., 500 or 1000)
 
 means <- replicate(
   reps,
   df %>%
     slice_sample(n = n_samp) %>%
-    summarise(m = mean(____, na.rm = TRUE)) %>%
+    summarise(m = mean(.data[[response_var]], na.rm = TRUE)) %>%
     pull(m)
 )
 
@@ -294,7 +295,7 @@ ggplot(tibble(mean_est = means), aes(mean_est)) +
 
 **Prompt (2–3 sentences):** Is the sampling distribution centered on the population mean? What happens if you increase `n_samp`?
 
-> *Write your answer here.*
+> Yes, the sampling distribution is centered close to the population mean (dashed line). This suggests that the sample mean is a good estimator of the population mean. If I increase n_samp, the sampling distribution should become narrower, meaning the sample means would vary less from sample to sample.
 
 ---
 
@@ -304,20 +305,20 @@ Here you’ll test whether stratification helps when the population has structur
 
 ## 5.1 Stratify by month
 
-```{r strat_by_month, echo=TRUE, eval=FALSE}
+```{r strat_by_month, echo=TRUE, eval=TRUE}
 set.seed(480)
 
 # GOAL: sample within each month to ensure seasonal representation.
 # TODO: choose n_per_month so total sample size is reasonable (e.g., 12 * 20 = 240)
-n_per_month <- ___
+n_per_month <- 20
 
 samp_strat <- df %>%
   group_by(month) %>%
   slice_sample(n = n_per_month) %>%
   ungroup()
 
-strat_mean <- mean(samp_strat____, na.rm = TRUE)
-strat_sd   <- sd(samp_strat____, na.rm = TRUE)
+strat_mean <- mean(samp_strat[[response_var]], na.rm = TRUE)
+strat_sd   <- sd(samp_strat[[response_var]], na.rm = TRUE)
 
 tibble(
   n_per_month = n_per_month,
@@ -333,7 +334,7 @@ tibble(
 
 ## 5.2 Compare strategies (SRS vs stratified)
 
-```{r compare_sampling, echo=TRUE, eval=FALSE}
+```{r compare_sampling, echo=TRUE, eval=TRUE}
 tibble(
   strategy = c("Population", "SRS", "Stratified by month"),
   mean = c(pop_mean, samp_mean, strat_mean),
@@ -343,7 +344,7 @@ tibble(
 
 **Prompt (3–4 sentences):** Which strategy better approximated the population mean and SD for your response variable? Why might stratification help (or not) here?
 
-> *Write your answer here.*
+> In this run, SRS was closer to the population mean and SD. The stratified sample mean was higher, probably because it ensured equal representation of summer months when LE is higher. Stratification sampling can help avoid missing parts of the seasonal cycle, but it cannot guarantee a better estimate every time.
 
 ---
 
@@ -356,7 +357,10 @@ Answer in **4–6 sentences**:
 - In EAES field studies, when is stratification essential?
 - What is one trade-off of stratified sampling?
 
-> *Write your answer here.*
+> Seasonality matters for sampling because variables like LE change a lot across the year, and summer values are much higher than winter values. 
+If sampling ignores latent grouping variables (like month or day/night), a random sample could accidentally include too many winter or nighttime points, which would bias the estimate of the population mean. 
+In EAES field studies, stratification is essential when the population has strong structure, such as seasonal cycles, elevation zones, land cover types, or different hydrologic conditions. Stratified sampling helps ensure all important conditions are represented.
+One trade-off is that stratified sampling can be more complicated to design and may require more planning and effort than simple random sampling.
 
 ---
 
